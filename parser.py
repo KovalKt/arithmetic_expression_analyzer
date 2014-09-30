@@ -36,6 +36,11 @@ def main_automat():
         append_name(**kwargs)
         brackets_count -= 1
 
+    def show_error(text, item):
+        append_name(item=item)
+        print text, '\n', Buffer
+        print '_'*(index_counter-1)+'|'
+
 
     CHAR_SMB = {EXPR: (VAR, append_name), VAR: (VAR, append_name), \
         NUMBER: (ERROR, "Unexpected character"), AFTER_ITEM_SPACE: (ERROR, "Unexpected character"), \
@@ -65,9 +70,9 @@ def main_automat():
         NUMBER: (AFTER_ITEM_SPACE, append_name), AFTER_ITEM_SPACE: (AFTER_ITEM_SPACE, None), \
         DECIMAL: (AFTER_ITEM_SPACE, append_name), CLOSE_BRACKET: (CLOSE_BRACKET, None)}
     
-    ELSE_SMB = {EXPR: (ERROR, 3), VAR: (ERROR, 3), \
-        NUMBER: (ERROR, 3), AFTER_ITEM_SPACE: (ERROR, 3), \
-        DECIMAL: (ERROR, 3), CLOSE_BRACKET: (ERROR, 3)}
+    ELSE_SMB = {EXPR: (ERROR, "Unexpected character"), VAR: (ERROR, "Unexpected character"), \
+        NUMBER: (ERROR, "Unexpected character"), AFTER_ITEM_SPACE: (ERROR, "Unexpected character"), \
+        DECIMAL: (ERROR, "Unexpected character"), CLOSE_BRACKET: (ERROR, "Unexpected character")}
 
     END_SMB = {EXPR: (ERROR, None), VAR: (END, None), \
         NUMBER: (END, None), AFTER_ITEM_SPACE: (END, None), \
@@ -105,23 +110,23 @@ def main_automat():
             return 'else'
         
     exp = sys.argv[1]
-    # print "expresion: ", exp
-    while not (STATE == END or STATE == ERROR):
-        for item in exp:
-            ITEM_TYPE = get_item_type(item)
-            # print '44444', ITEM_TYPE
-            STATE, action = TABLE[ITEM_TYPE].get(STATE)
-            # print "state", STATE, "item type", ITEM_TYPE, "item - ", item
-            if action is not None:
-                if hasattr(action, '__call__'):
-                    action(item=item)
-                else:
-                    append_name(item=item)
-                    print ERROR_TABLE[action]
-                    print Buffer
-                    print '_'*(index_counter-1)+'|'
-        if STATE != ERROR:
-            STATE = END 
+
+    for item in exp:
+        ITEM_TYPE = get_item_type(item)
+        STATE, action = TABLE[ITEM_TYPE].get(STATE)
+        if action:
+            if hasattr(action, '__call__'):
+                action(item=item)
+            else:0
+                STATE = ERROR
+                show_error(action, item)
+                break
+        else:
+            show_error("invalyd syntax", item)
+            STATE = ERROR
+            break
+    if STATE != ERROR:
+        STATE = END 
     return STATE    
 
 
