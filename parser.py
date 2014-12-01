@@ -1,8 +1,9 @@
 import string
 import sys
 
-Buffer = ''
-brackets_count = 0
+Buffer = []
+open_brackets_count = 0
+close_brackets_count = 0
 index_counter = 0
 
 (EXPR, VAR, AFTER_ITEM_SPACE, NUMBER, DECIMAL, 
@@ -10,57 +11,63 @@ index_counter = 0
 NOT_FIN_STATE = (EXPR, ERROR)
 
 
-def append_name(**kwargs):
+def append_operand(**kwargs):
     global Buffer, index_counter
     item = kwargs['item']
     Buffer += item
     index_counter += 1
 
 def show_error(text, item):
-    append_name(item=item)
+    append_operand(item=item)
     print text, '\n', Buffer
     print '_'*(index_counter-1)+'|'
 
 def main_automat():
     global Buffer
     STATE = 0
+    global_safe = []
 
 
     def open_bracket(**kwargs):
-        global brackets_count
+        global open_brackets_count, Buffer
 
-        append_name(**kwargs)
-        brackets_count += 1
+        global_safe.append(Buffer)
+        Buffer = []
+        # append_operand(**kwargs)
+        open_brackets_count += 1
 
     def close_bracket(**kwargs):
-        global brackets_count
+        global close_brackets_count, open_brackets_count, Buffer
 
-        brackets_count -= 1
-        if brackets_count < 0:
+        close_brackets_count += 1
+        if (open_brackets_count - close_brackets_count) < 0:
             return "Wrong number of brackets"
         else:
-            append_name(**kwargs)
+            tmp = global_safe.pop()
+            tmp.append(Buffer)
+            Buffer = tmp
+            # append_operand(**kwargs)
 
 
-    CHAR_SMB = {EXPR: (VAR, append_name), VAR: (VAR, append_name), \
+    CHAR_SMB = {EXPR: (VAR, append_operand), VAR: (VAR, append_operand), \
         NUMBER: (ERROR, "Unexpected character"), AFTER_ITEM_SPACE: (ERROR, "Unexpected character"), \
         DECIMAL: (ERROR, "Unexpected character"), CLOSE_BRACKET: (ERROR, None), \
-        AFTER_OPEN_BRACKET: (VAR, append_name)}
+        AFTER_OPEN_BRACKET: (VAR, append_operand)}
 
-    NUMERIC_SMB = {EXPR: (NUMBER, append_name), VAR: (VAR, append_name), \
-        NUMBER: (NUMBER, append_name), AFTER_ITEM_SPACE: (ERROR, None), \
-        DECIMAL: (DECIMAL, append_name), CLOSE_BRACKET: (ERROR, None), \
-        AFTER_OPEN_BRACKET: (NUMBER, append_name)}
+    NUMERIC_SMB = {EXPR: (NUMBER, append_operand), VAR: (VAR, append_operand), \
+        NUMBER: (NUMBER, append_operand), AFTER_ITEM_SPACE: (ERROR, None), \
+        DECIMAL: (DECIMAL, append_operand), CLOSE_BRACKET: (ERROR, None), \
+        AFTER_OPEN_BRACKET: (NUMBER, append_operand)}
     
-    OPERATION_SMB = {EXPR: (ERROR, None), VAR: (EXPR, append_name), \
-        NUMBER: (EXPR, append_name), AFTER_ITEM_SPACE: (EXPR, append_name), \
-        DECIMAL: (EXPR, append_name), CLOSE_BRACKET: (EXPR, append_name), \
+    OPERATION_SMB = {EXPR: (ERROR, None), VAR: (EXPR, append_operand), \
+        NUMBER: (EXPR, append_operand), AFTER_ITEM_SPACE: (EXPR, append_operand), \
+        DECIMAL: (EXPR, append_operand), CLOSE_BRACKET: (EXPR, append_operand), \
         AFTER_OPEN_BRACKET: (ERROR, "Wrong character! Need operand")}
 
-    MINUS_SMB = {EXPR: (ERROR, "Wrong character! Maybe you need brackets"), VAR: (EXPR, append_name), \
-        NUMBER: (EXPR, append_name), AFTER_ITEM_SPACE: (EXPR, append_name), \
-        DECIMAL: (EXPR, append_name), CLOSE_BRACKET: (EXPR, append_name), \
-        AFTER_OPEN_BRACKET: (EXPR, append_name)}
+    MINUS_SMB = {EXPR: (ERROR, "Wrong character! Maybe you need brackets"), VAR: (EXPR, append_operand), \
+        NUMBER: (EXPR, append_operand), AFTER_ITEM_SPACE: (EXPR, append_operand), \
+        DECIMAL: (EXPR, append_operand), CLOSE_BRACKET: (EXPR, append_operand), \
+        AFTER_OPEN_BRACKET: (EXPR, append_operand)}
     
     OBRACKET_SMB = {EXPR: (AFTER_OPEN_BRACKET, open_bracket), VAR: (ERROR, None), \
         NUMBER: (ERROR, None), AFTER_ITEM_SPACE: (ERROR, None), \
@@ -73,13 +80,13 @@ def main_automat():
         AFTER_OPEN_BRACKET: (ERROR, "Brackets error! Expected expression inside brackets")}
     
     DOT_SMB = {EXPR: (ERROR, "Operand can't start with '.'"), VAR: (ERROR, "Unexpected character"), \
-        NUMBER: (DECIMAL, append_name), AFTER_ITEM_SPACE: (ERROR, None), \
+        NUMBER: (DECIMAL, append_operand), AFTER_ITEM_SPACE: (ERROR, None), \
         DECIMAL: (ERROR, "Unexpected character"), CLOSE_BRACKET: (ERROR, None), \
         AFTER_OPEN_BRACKET: (ERROR, "Unexpected character")}
     
-    SPACE_SMB = {EXPR: (EXPR, append_name), VAR: (AFTER_ITEM_SPACE, append_name), \
-        NUMBER: (AFTER_ITEM_SPACE, append_name), AFTER_ITEM_SPACE: (AFTER_ITEM_SPACE, None), \
-        DECIMAL: (AFTER_ITEM_SPACE, append_name), CLOSE_BRACKET: (CLOSE_BRACKET, None), \
+    SPACE_SMB = {EXPR: (EXPR, append_operand), VAR: (AFTER_ITEM_SPACE, append_operand), \
+        NUMBER: (AFTER_ITEM_SPACE, append_operand), AFTER_ITEM_SPACE: (AFTER_ITEM_SPACE, None), \
+        DECIMAL: (AFTER_ITEM_SPACE, append_operand), CLOSE_BRACKET: (CLOSE_BRACKET, None), \
         AFTER_OPEN_BRACKET: (AFTER_OPEN_BRACKET, None)}
     
     ELSE_SMB = {EXPR: (ERROR, "Unexpected character"), VAR: (ERROR, "Unexpected character"), \
@@ -147,17 +154,22 @@ def main_automat():
             break
     return STATE    
 
-
-if __name__ == "__main__":
+def analyze_expression():
     STATE = main_automat()
     if STATE == 0:
         print "Unfinished expression", '\n', Buffer
         print '_'*(index_counter-1)+'|'
+        return "Some error"
     elif STATE in (1,2,3,4,5,7):
-        if brackets_count == 0:
-            print "Expression: ", Buffer
+        if (open_brackets_count - close_brackets_count) == 0:
+            # print "Expression: ", Buffer
+            return Buffer
         else:
             print "Wrong number of brackets", '\n', Buffer
             print '_'*(index_counter-1)+'|'
+            return "Some error"
+
+# if __name__ == "__main__":
+#     analyze_expression()
     
 
