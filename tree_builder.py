@@ -1,11 +1,12 @@
 from parser import analyze_expression
 import pydot
-from itertools import count, permutations
+import copy
+from itertools import count, permutations, product
 from collections import Counter, OrderedDict
 
 
 
-def drow_tree(expr):
+def drow_tree(expr, index):
     tree = pydot.Dot(graph_type='graph')
     c = count(0)
 
@@ -24,7 +25,7 @@ def drow_tree(expr):
             return node
 
     core = add_elements(expr, tree)
-    tree.write_png('my_tree.png')
+    tree.write_png('my_tree%s.png' % index)
             
 
 
@@ -222,8 +223,9 @@ def get_weight(item):
     if type(item[1]) == list:
         res = get_weight_for_list(item[1])
     
-    if item[0] in weights:
-        res += weights[item[0]]
+    # don't culculate '+'' or '-'' operation before operand
+    # if item[0] in weights:
+    #     res += weights[item[0]]
     return res
 
 def get_sign_index(expr, el):
@@ -252,35 +254,44 @@ def permutation(expr):
     result = []
     weight_table = OrderedDict()
 
-    expr = convert_to_tuples(expr)
+    # expr = convert_to_tuples(expr)
 
     for item in expr:
-        weight = get_wight(item[0])
+        weight = get_weight(item)
         if weight in weight_table:
             weight_table[weight].append(item)
         else:
             weight_table[weight] = [item]
+    # print "weight_table"
+    # for key, value in weight_table.iteritems():
+    #     print key, value
 
     for key, value in weight_table.iteritems():
-        if key > 0:
-            weight_table[key] = permutations(value)
+        if key > 0 and len(value) > 1:
+            weight_table[key] = map(list, permutations(value))
 
-    current_var = []
-    for key, value in weight_table.iteritems():
-        if key == 0:
-            for item in value:
-                current_var.append(item[0])
-                current_var.append(item[1])
-            result.append(current_var)
-        else:
-            for value_set in value:
-                new_var = copy.deepcopy(current_var)
-                for item in value:
-                    new_var.append(item[0])
-                    new_var.append(item[1])
-
-            # current_var.append(item for item in value)
+    # print "with permutation"
+    # for key, value in weight_table.iteritems():
         # print key, value
+
+    if 0 in weight_table:
+        # begin = weight_table[0]
+        result.append(weight_table[0])
+        # print result
+
+    del weight_table[0]
+            
+    for key, value in weight_table.iteritems():
+        if len(value) < 2:
+            result = map(lambda x: x+value, result)
+        else:
+            result = map(list,product(result, value))
+            result = map(lambda x: x[0]+x[1], result)
+            
+    # for index, var in enumerate(result):
+    #     print 'Variant N%s' % index
+    #     print var
+    return result
 
 
 
@@ -288,7 +299,23 @@ if __name__ == "__main__":
     global new_expr
     expr_list = analyze_expression()
     expr = set_fake_brackets(expr_list)
-    expr = sorting(expr)
     print expr
+    expr = sorting(expr)
+    expr = permutation(expr)
+    print "!!!!!\n",expr
+    # permutation(expr)
+    # expr_with_wight = set_wight(expr_list)
+    # nx = set_brackets(expr) 
+    # print 'Result: ', nx
+    for index, var in enumerate(expr):
+        print 'Variant N%s' % index
+        tmp_expr = []
+        print "44444", var
+        for item in var:
+            tmp_expr += item
+        print tmp_expr
+        tmp_expr = set_brackets(tmp_expr[1:])
+        drow_tree(tmp_expr, index)
+    # drow_tree(nx)
 
 
