@@ -176,32 +176,46 @@ def set_fake_brackets(expr):
 
     for indx, item in enumerate(expr):
         is_not_last = indx+1 < len(expr)
+        # print indx, item, 'is_not_last ', is_not_last
         if finish_term:
             new_expr.append(item)
             finish_term = False
+            # print 'finish term'
             continue
         if len(term) == 0 or len(term)%2 == 0:
+            # print 'len term ', len(term)
             if is_not_last and expr[indx+1] in ['*', '/']:
                 if type(item) == list:
                     item = set_fake_brackets(item)
+                # print '00000000', item
                 term.append(item)
             else:
+                # print 'else111'
                 if is_not_last and term:
                     term.append(item)
                     new_expr.append(term)
+                    # print '111111111111', term, new_expr
                     term = []
                     finish_term = True
                     continue
                 else:
                     if not term:
+                        # print '222222222'
                         new_expr.append(item)
+                        # print indx, item
+                        finish_term = True
+                        continue
                     else:
                         term.append(item)
                         new_expr.append(term)
+                        # print '33333333333333333333333', term, new_expr
+                        finish_term = True
+                        continue
 
         elif len(term)%2 != 0:
+            # print 'some strangue elif'
             term.append(item)
-    return new_expr if len(new_expr) > 3 else new_expr[0]
+    return new_expr if len(new_expr) >= 3 else new_expr[0]
 
 def get_weight(item):
     res = 0
@@ -245,7 +259,7 @@ def sorting(expr):
 
 def convert_to_tuples(expr_list):
     res = []
-    expr.insert(0, '+')
+    expr_list.insert(0, '+')
     for index in range(0,len(expr_list),2):
         res.append((expr_list[index], expr_list[index+1]))
     return res
@@ -254,30 +268,19 @@ def permutation(expr):
     result = []
     weight_table = OrderedDict()
 
-    # expr = convert_to_tuples(expr)
-
     for item in expr:
         weight = get_weight(item)
         if weight in weight_table:
             weight_table[weight].append(item)
         else:
             weight_table[weight] = [item]
-    # print "weight_table"
-    # for key, value in weight_table.iteritems():
-    #     print key, value
 
     for key, value in weight_table.iteritems():
         if key > 0 and len(value) > 1:
             weight_table[key] = map(list, permutations(value))
 
-    # print "with permutation"
-    # for key, value in weight_table.iteritems():
-        # print key, value
-
     if 0 in weight_table:
-        # begin = weight_table[0]
         result.append(weight_table[0])
-        # print result
 
     del weight_table[0]
             
@@ -288,34 +291,151 @@ def permutation(expr):
             result = map(list,product(result, value))
             result = map(lambda x: x[0]+x[1], result)
             
-    # for index, var in enumerate(result):
-    #     print 'Variant N%s' % index
-    #     print var
     return result
+
+def mull_div(el1, el2, op):
+    if el1[0] == '+' and el2[0] == '+':
+        return ['+', el1[1], op, el2[1]]
+    elif el1 [0] == '-' and el2[0] == '-':
+        return ['+', el1[1], op, el2[1]]
+    elif el1[0] == '-' or el2[0] == '-':
+        return ['-', el1[1], op, el2[1]]
+
+def open_brakets(expr):
+    result = []
+    was_opened = False
+    step_plus = False
+    expr = convert_to_tuples(expr)
+    if len(expr) < 2:
+        result.append(expr[0][0])
+        result.append(expr[0][1])
+        return result
+
+    for indx in xrange(len(expr)-1):
+        # print indx, expr[indx]
+        if step_plus:
+            step_plus = False
+            if (indx+2) == len(expr):
+                result.append(expr[indx+1][0])
+                result.append(expr[indx+1][1])
+            continue
+        if was_opened:
+            # print 'was opened///'
+            result.append(expr[indx][0])
+            result.append(expr[indx][1])
+            if (indx+2) == len(expr):
+                result.append(expr[indx+1][0])
+                result.append(expr[indx+1][1])
+        else:
+            # print 'not was opened...'
+            if expr[indx+1][0] == '*' and type(expr[indx+1][1]) == list:
+                # print 'next is braket with mull'
+                # when you met situation a*(b*c)
+                if len(expr[indx+1][1]) == 3 and expr[indx+1][1][1] == '*':
+                    result.append(expr[indx][0])
+                    result.append(expr[indx][1])
+                    result.append(expr[indx+1][0])
+                    for it in expr[indx+1][1]:
+                        result.append(it)
+                    step_plus = True
+                    continue
+                in_braket_list = set_fake_brackets(expr[indx+1][1])
+                # print 'in braket list ', expr[indx+1][1], in_braket_list
+                first_mul = expr[indx]
+                need_external_braket = False
+                if not indx and len(expr) > 2: #if it's first el in expression
+                    if expr[indx+2][0] in ('*', '/'):
+                        need_external_braket = True
+                elif indx+2 == len(expr): #if it's last el in expression
+                    if expr[indx][0] == '*':
+                        result.append('*')
+                        first_mul = ('+', expr[indx][1])
+                        need_external_braket = True
+                else:  # if it's midle el in expression
+                    # print 'ELSE_________'
+                    if indx+3 <= len(expr) and expr[indx+2][0] in ('*', '/'):
+                        need_external_braket = True
+                    if expr[indx][0] == '*':
+                        result.append('*')
+                        first_mul = ('+', expr[indx][1])
+
+                tmp_res = []
+                for element in convert_to_tuples(in_braket_list):
+                    # print first_mul, element
+                    tmp_el = mull_div(first_mul, element, expr[indx+1][0])
+                    # print 'm---', element, tmp_el
+                    if need_external_braket:
+                        # print 'need external', 
+                        for it in tmp_el:
+                            tmp_res.append(it)
+                    else:
+                        for it in tmp_el:
+                            result.append(it)
+
+                    was_opened = True
+                    step_plus = True
+                # print 'prev result', result
+                if tmp_res:
+                    result.append(tmp_res[1:])
+            elif expr[indx+1][0] in ('/', '*') and type(expr[indx][1]) == list:
+                in_braket_list = set_fake_brackets(expr[indx][1])
+                # print 'divdivdiv next is bratek with div'
+                for element in convert_to_tuples(in_braket_list):
+                    # print '..........', element, expr[indx+1]
+                    tmp_el = mull_div(element, (expr[indx][0],expr[indx+1][1]), expr[indx+1][0])
+                    # print 'd---', element, tmp_el
+                    for it in tmp_el:
+                        result.append(it)
+                    was_opened = True
+                    step_plus = True
+                    # print 'prev result', result
+            # elif exrp[indx+1][0] == '*' and type()
+            else:
+                result.append(expr[indx][0])
+                result.append(expr[indx][1])
+                if (indx+2) == len(expr):
+                    result.append(expr[indx+1][0])
+                    result.append(expr[indx+1][1]) 
+                # print 'usual operand', result
+    # print 'rrererererere', result, was_opened
+    return result, was_opened
 
 
 
 if __name__ == "__main__":
     global new_expr
     expr_list = analyze_expression()
-    expr = set_fake_brackets(expr_list)
-    print expr
-    expr = sorting(expr)
-    expr = permutation(expr)
-    print "!!!!!\n",expr
-    # permutation(expr)
-    # expr_with_wight = set_wight(expr_list)
-    # nx = set_brackets(expr) 
-    # print 'Result: ', nx
-    for index, var in enumerate(expr):
+    # expr = convert_to_tuples(expr_list)
+    print expr_list
+    result = expr_list
+    global_res = []
+    was_opened = True
+    while was_opened:
+        result, was_opened = open_brakets(result)
+        if was_opened:
+            # result = set_brackets(result[1:])
+            global_res.append(result[1:])
+        # print 'eeeeeedede ', was_opened, result
+        result = result[1:]
+        # print '\n', global_res
+    for index, var in enumerate(global_res):
         print 'Variant N%s' % index
-        tmp_expr = []
-        print "44444", var
-        for item in var:
-            tmp_expr += item
-        print tmp_expr
-        tmp_expr = set_brackets(tmp_expr[1:])
-        drow_tree(tmp_expr, index)
-    # drow_tree(nx)
+        print var
+        tmp_var = set_brackets(var)
+        drow_tree(tmp_var, index)
+    # expr = set_fake_brackets(expr_list)
+    # print expr
+    # expr = sorting(expr)
+    # expr = permutation(expr)
+    # for index, var in enumerate(expr):
+    #     print 'Variant N%s' % index
+    #     tmp_expr = []
+    #     print var
+    #     for item in var:
+    #         tmp_expr += item
+    #     print tmp_expr
+    #     tmp_expr = set_brackets(tmp_expr[1:])
+    #     drow_tree(tmp_expr, index)
+
 
 
