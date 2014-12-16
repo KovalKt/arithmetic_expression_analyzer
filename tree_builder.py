@@ -6,26 +6,27 @@ from collections import Counter, OrderedDict
 
 
 
-def drow_tree(expr, index):
-    tree = pydot.Dot(graph_type='graph')
-    c = count(0)
+# def drow_tree(expr, index):
+#     tree = pydot.Dot(graph_type='graph')
+#     c = count(0)
 
-    def add_elements(expr, tree):
-        if len(expr) > 1:
-            op_node = pydot.Node(c.next(), label=expr[1])
-            left_child = add_elements(expr[0], tree)
-            right_child = add_elements(expr[2], tree)
-            tree.add_node(op_node)
-            tree.add_edge(pydot.Edge(op_node, left_child))
-            tree.add_edge(pydot.Edge(op_node, right_child))
-            return op_node
-        else:
-            node = pydot.Node(c.next(), label=expr[0])
-            tree.add_node(node)
-            return node
+#     def add_elements(expr, tree):
+#         indx = c.next()
+#         if len(expr) > 1:
+#             op_node = pydot.Node(indx, label="%s (%s)"%(expr[1], indx))
+#             left_child = add_elements(expr[0], tree)
+#             right_child = add_elements(expr[2], tree)
+#             tree.add_node(op_node)
+#             tree.add_edge(pydot.Edge(op_node, left_child))
+#             tree.add_edge(pydot.Edge(op_node, right_child))
+#             return op_node
+#         else:
+#             node = pydot.Node(indx, label="%s (%s)"%(expr[0], indx))
+#             tree.add_node(node)
+#             return node
 
-    core = add_elements(expr, tree)
-    tree.write_png('my_tree%s.png' % index)
+#     core = add_elements(expr, tree)
+#     tree.write_png('my_tree%s.png' % index)
             
 
 
@@ -45,8 +46,8 @@ def replace_operation(op):
 
 def modify_expr_mull_plus(expr, op):
     new_expr = []
-
     couple = []
+
     finish_couple = False
     was_modified = False
     for indx, item in enumerate(expr):
@@ -302,6 +303,7 @@ def mull_div(el1, el2, op):
         return ['-', el1[1], op, el2[1]]
 
 def open_brakets(expr):
+    # print ',,,,,,,,,,'
     result = []
     was_opened = False
     step_plus = False
@@ -402,40 +404,42 @@ def open_brakets(expr):
 
 
 
-if __name__ == "__main__":
+def get_expression_variations():
     global new_expr
     expr_list = analyze_expression()
     # expr = convert_to_tuples(expr_list)
     print expr_list
-    result = expr_list
+    result = [item for item in expr_list]
     global_res = []
+    # global_res.append(expr_list)
     was_opened = True
     while was_opened:
+        # print 'lll'
         result, was_opened = open_brakets(result)
         if was_opened:
             # result = set_brackets(result[1:])
             global_res.append(result[1:])
         # print 'eeeeeedede ', was_opened, result
         result = result[1:]
-        # print '\n', global_res
+        # print '\n', global_res, result
+    expr_variations = []
+    if not global_res:
+        global_res.append(result)
+    # add original exrpession
+    orig_expr = set_brackets(expr_list)
+    tmp_expr = []
+    
     for index, var in enumerate(global_res):
-        print 'Variant N%s' % index
-        print var
-        tmp_var = set_brackets(var)
-        drow_tree(tmp_var, index)
-    # expr = set_fake_brackets(expr_list)
-    # print expr
-    # expr = sorting(expr)
-    # expr = permutation(expr)
-    # for index, var in enumerate(expr):
-    #     print 'Variant N%s' % index
-    #     tmp_expr = []
-    #     print var
-    #     for item in var:
-    #         tmp_expr += item
-    #     print tmp_expr
-    #     tmp_expr = set_brackets(tmp_expr[1:])
-    #     drow_tree(tmp_expr, index)
-
-
-
+        tmp_var = set_fake_brackets(var)
+        tmp_var = sorting(tmp_var)
+        tmp_vars = permutation(tmp_var)
+        for i, expr in enumerate(tmp_vars, 1):
+            print 'Variant N%s' % i
+            tmp_expr = []
+            # print expr
+            for item in expr:
+                tmp_expr += item
+            tmp_expr = set_brackets(tmp_expr[1:])
+            print tmp_expr
+            expr_variations.append(tmp_expr)
+    return expr_variations, orig_expr
